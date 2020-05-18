@@ -1,14 +1,49 @@
 {
-  "name": "Flutter-Design-Style",
-  "version": "1.0.0",
-  "description": "Your Figma Plugin",
-  "main": "code.js",
+  "name": "figma-flutter-style",
+  "version": "0.1.0",
+  "main": "gulpfile.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "gulp --production",
+    "dev": "gulp"
   },
-  "author": "",
-  "license": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/4xes/figma-flutter-style.git"
+  },
+  "keywords": [
+    "gulp",
+    "flutter",
+    "style",
+    "generate",
+    "code"
+  ],
+  "author": "@4xes",
+  "description": "Plugin for export flutter code",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/4xes/figma-flutter-style/issues"
+  },
+  "homepage": "https://github.com/4xes/figma-flutter-style#readme",
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.15.0",
+    "autoprefixer": "^9.7.6",
+    "del": "^5.1.0",
+    "figma-plugin-ds": "^0.1.8",
+    "gulp": "^4.0.2",
+    "gulp-base64-inline": "^1.0.6",
+    "gulp-concat": "^2.6.1",
+    "gulp-csso": "^4.0.1",
+    "gulp-inline-source": "^4.0.0",
+    "gulp-minify": "^3.1.0",
+    "gulp-postcss": "^8.0.0",
+    "gulp-purgecss": "^2.1.2",
+    "gulp-replace": "^1.0.0",
+    "gulp-sass": "^4.1.0",
+    "gulp-typescript": "^6.0.0-alpha.1",
+    "gulp-util": "^3.0.8",
+    "typescript": "^3.8.3"
+  },
   "dependencies": {
-    "@figma/plugin-typings": "^1.15.0"
+    "gulp-htmlmin": "^5.0.1"
   }
 }
