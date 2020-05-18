@@ -15,6 +15,7 @@ figma.on("selectionchange", () => {
 function parseSelection() {
     let selection = figma.currentPage.selection;
 
+    console.log("Parse selection.");
     let parent = new FlutterParent();
     for (let node of selection) {
         parseNode(node, parent)
@@ -23,17 +24,43 @@ function parseSelection() {
 }
 
 function parseNode(node: SceneNode, parent: FlutterParent) {
-    console.log(node.type);
-    if (node.type == "TEXT") {
+    console.log("node: " + node.type);
+    if (node.type === "TEXT") {
         parent.addChild(textWidget(node));
-    } else if (node.type == "GROUP" || node.type == "INSTANCE") {
+    } else if (node.type === "LINE") {
+        parent.addChild(lineWidget(node))
+    } else if (node.type === "RECTANGLE") {
+
+    } else if (node.type === "GROUP" || node.type === "INSTANCE") {
         let groupParent = new FlutterParent();
         for (let child of node.children) {
-           console.log(child.type);
            parseNode(child, groupParent)
         }
         parent.addChild(groupParent);
     }
+}
+
+function lineWidget(node: LineNode) {
+    let code = "";
+    let height = node.strokeWeight.toFixed(1);
+    let width = node.width.toFixed(1);
+    let color = new FlutterColor().fromLineNode(node);
+
+    if (Math.round(node.rotation) == 0) {
+        let dividerWidget = new FlutterObject("Divider");
+        if (height != "16.0") {
+            dividerWidget.addArgument("height", height);
+        }
+        dividerWidget.addArgument("color", color);
+        code += dividerWidget
+    } else {
+        let containerWidget = new FlutterObject("Container");
+        containerWidget.addArgument("height", width);
+        containerWidget.addArgument("width", height);
+        containerWidget.addArgument("color", color);
+        code += containerWidget
+    }
+    return code;
 }
 
 function textWidget(node: TextNode): string {
@@ -154,7 +181,9 @@ class FlutterParent {
     children: any[] = [];
 
     addChild(value: any) {
-        this.children.push(value)
+        if (value != null && value.toString().length > 0) {
+             this.children.push(value)
+        }
     }
 
     toString() {
@@ -173,6 +202,11 @@ class FlutterColor {
 
     fromTextNode(node: TextNode): string {
         let fill = (node.fills as ReadonlyArray<Paint>)[0];
+        return this.fromPaint(fill, node.opacity)
+    }
+
+    fromLineNode(node: LineNode): string {
+        let fill = (node.strokes as ReadonlyArray<Paint>)[0];
         return this.fromPaint(fill, node.opacity)
     }
 
