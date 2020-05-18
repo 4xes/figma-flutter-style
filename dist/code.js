@@ -1,6 +1,8 @@
 figma.showUI(__html__);
+let exportFontFamily = false;
 figma.ui.onmessage = msg => {
     if (msg.type === 'create-style') {
+        exportFontFamily = msg.exportFontFamily;
         parseSelection();
     }
     else if (msg.type === "alert") {
@@ -22,10 +24,10 @@ function parseSelection() {
 function parseNode(node, parent) {
     console.log("node: " + node.type);
     if (node.type === "TEXT") {
-        parent.addChild(textWidget(node));
+        parent.addChild(text(node));
     }
     else if (node.type === "LINE") {
-        parent.addChild(lineWidget(node));
+        parent.addChild(line(node));
     }
     else if (node.type === "RECTANGLE") {
     }
@@ -37,8 +39,7 @@ function parseNode(node, parent) {
         parent.addChild(groupParent);
     }
 }
-function lineWidget(node) {
-    let code = "";
+function line(node) {
     let height = node.strokeWeight.toFixed(1);
     let width = node.width.toFixed(1);
     let color = new FlutterColor().fromLineNode(node);
@@ -48,24 +49,34 @@ function lineWidget(node) {
             dividerWidget.addArgument("height", height);
         }
         dividerWidget.addArgument("color", color);
-        code += dividerWidget;
+        return dividerWidget;
     }
     else {
         let containerWidget = new FlutterObject("Container");
         containerWidget.addArgument("height", width);
         containerWidget.addArgument("width", height);
         containerWidget.addArgument("color", color);
-        code += containerWidget;
+        return containerWidget;
     }
-    return code;
 }
-function textWidget(node) {
-    let code = "";
-    let text = "\"" + node.characters + "\"";
+function decorator(node) {
+    /*
+    BoxDecoration(
+        border: Border.fromBorderSide(
+            BorderSide(width: 1.0, color: Color(0xFFDDDDDD))
+        ),
+        borderRadius: BorderRadius.circular(12.0)
+    )
+     */
+}
+function text(node) {
+    let text = toFlutterString(node.characters);
     let fontSize = node.fontSize;
-    //TODO support fontFamily
-    //var fontFamily = node.fontName["family"];
     let style = node.fontName["style"];
+    let fontFamily = null;
+    if (exportFontFamily) {
+        fontFamily = toFlutterString(node.fontName["family"]);
+    }
     let color = new FlutterColor().fromTextNode(node);
     let textAlign = null;
     switch (node.textAlignHorizontal) {
@@ -88,7 +99,7 @@ function textWidget(node) {
             text += ".toLowerCase()";
             break;
         case "TITLE":
-            text = "\"" + node.characters.charAt(0).toUpperCase() + node.characters.substring(1) + "\"";
+            text = toFlutterString(node.characters.charAt(0).toUpperCase() + node.characters.substring(1));
             break;
         case "UPPER":
             text += ".toUpperCase()";
@@ -123,14 +134,14 @@ function textWidget(node) {
     let textStyle = new FlutterObject("TextStyle");
     textStyle.addArgument("color", color);
     textStyle.addArgument("fontSize", fontSize.toFixed(1));
+    textStyle.addArgument("fontFamily", fontFamily);
     textStyle.addArgument("fontWeight", fontWeight);
     textStyle.addArgument("decoration", decoration);
     let textWidget = new FlutterObject("Text");
     textWidget.addValue(text);
     textWidget.addArgument("style", textStyle);
     textWidget.addArgument("textAlign", textAlign);
-    code += textWidget;
-    return code;
+    return textWidget;
 }
 class FlutterObject {
     constructor(name) {
@@ -252,4 +263,7 @@ class FlutterColor {
 }
 function hex(double) {
     return (Math.round(double * 255)).toString(16).toUpperCase().padStart(2, "0");
+}
+function toFlutterString(text) {
+    return "\'" + text + "\'";
 }

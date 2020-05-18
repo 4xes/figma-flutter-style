@@ -1,17 +1,17 @@
 //vars
-const createStyleButton = document.querySelector('#createStyle');
 const copyButton = document.querySelector('#copy');
 const code = document.querySelector('#code');
+const exportFontFamily = document.querySelector('#exportFontFamily');
 
-//event listeners
-createStyleButton.onclick = () => { createStyle(); };
 copyButton.onclick = () => { copy(); };
 
-if (code.addEventListener) {
-  code.addEventListener('input', function() {
+code.addEventListener('input', function() {
     inputValidation()
   }, false);
-}
+
+exportFontFamily.addEventListener( 'change', function() {
+    createStyle()
+});
 
 function copy() {
   code.select();
@@ -19,7 +19,7 @@ function copy() {
 
   document.execCommand("copy");
 
-  alert("Code copied")
+  alert("Text is copied to the clipboard")
 }
 
 function alert(message) {
@@ -36,8 +36,10 @@ function inputValidation() {
 
 //functions
 function createStyle() {
+    console.log(exportFontFamily.checked);
     parent.postMessage({ pluginMessage: {
-        'type': 'create-style'
+        'type': 'create-style',
+        'exportFontFamily': exportFontFamily.checked
     } }, '*');
 }
 

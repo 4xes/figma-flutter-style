@@ -11,10 +11,12 @@
     <body>
 
     <div class="p-xxsmall">
-                <!-- Buttons -->
         <div class="flex p-xxsmall mb-xsmall">
-            <button id="createStyle" class='button button--primary'>Create style</button>
-            <button id="copy" class='button button--secondary mr-xxsmall'>Copy</button>
+            <button id="copy" class='button button--secondary mr-xxsmall'>Copy to clipboard</button>
+        </div>
+        <div class="checkbox">
+          <input id="exportFontFamily" type="checkbox" class="checkbox__box">
+          <label for="exportFontFamily" class="checkbox__label">Text with fontFamily</label>
         </div>
         <textarea id="code" class="textarea" rows="6"></textarea>
         
@@ -23,31 +25,3 @@
     <script src="./tmp/scripts.js"></script>
     </body>
 </html>
-
-
-<!--<p>Name: <input id="name" value=""></p>-->
-<!--<button id="createStyle">Create style</button>-->
-<!--&lt;!&ndash; <button id="createStatefulWidget">Create widget StatefulWidget</button>-->
-<!--<button id="createStatelessWidget">Create widget StatelessWidget</button> &ndash;&gt;-->
-<!--<button id="cancel">Cancel</button>-->
-<!--<p id="output">-->
-
-<!--</p>-->
-<!--<script>-->
-
-<!--document.getElementById('createStyle').onclick = () => {-->
-<!--  const textbox = document.getElementById('name');-->
-<!--  const name = textbox.value;-->
-<!--  parent.postMessage({ pluginMessage: { type: 'create-style', name } }, '*')-->
-<!--}-->
-
-<!--document.getElementById('cancel').onclick = () => {-->
-<!--  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')-->
-<!--}-->
-
-<!--onmessage = (event) => {-->
-<!--  var pluginMessage = event.data.pluginMessage-->
-<!--  document.getElementById("output").innerHTML = pluginMessage;-->
-<!--}-->
-
-<!--</script>-->
