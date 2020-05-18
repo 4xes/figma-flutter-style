@@ -1,7 +1,9 @@
 //vars
 const copyButton = document.querySelector('#copy');
 const code = document.querySelector('#code');
+
 const exportFontFamily = document.querySelector('#exportFontFamily');
+const exportSizes = document.querySelector('#exportSizes');
 
 copyButton.onclick = () => { copy(); };
 
@@ -10,6 +12,10 @@ code.addEventListener('input', function() {
   }, false);
 
 exportFontFamily.addEventListener( 'change', function() {
+    createStyle()
+});
+
+exportSizes.addEventListener( 'change', function() {
     createStyle()
 });
 
@@ -39,7 +45,8 @@ function createStyle() {
     console.log(exportFontFamily.checked);
     parent.postMessage({ pluginMessage: {
         'type': 'create-style',
-        'exportFontFamily': exportFontFamily.checked
+        'exportFontFamily': exportFontFamily.checked,
+        'exportSizes': exportSizes.checked
     } }, '*');
 }
 

@@ -1,8 +1,11 @@
-figma.showUI(__html__);
+figma.showUI(__html__, { height: 300 });
 let exportFontFamily = false;
+let exportSizes = true;
 figma.ui.onmessage = msg => {
     if (msg.type === 'create-style') {
+        console.log(msg);
         exportFontFamily = msg.exportFontFamily;
+        exportSizes = msg.exportSizes;
         parseSelection();
     }
     else if (msg.type === "alert") {
@@ -38,6 +41,10 @@ function parseNode(node, parent) {
             parseNode(child, groupParent);
         }
         parent.addChild(groupParent);
+        if (exportSizes && groupParent.isGroup()) {
+            groupParent.addArgumentPre("width", node.width.toFixed(1));
+            groupParent.addArgumentPre("height", node.height.toFixed(1));
+        }
     }
 }
 function line(node) {
@@ -209,6 +216,11 @@ class FlutterObject {
             this.params.push(name + ": " + value.toString());
         }
     }
+    addArgumentPre(name, value) {
+        if (value != null) {
+            this.params = [name + ": " + value.toString()].concat(this.params);
+        }
+    }
     // noinspection JSUnusedGlobalSymbols
     addArgumentOpt(name, value) {
         if (value == null) {
@@ -232,8 +244,11 @@ class FlutterParent extends FlutterObject {
             this.children.push(value);
         }
     }
+    isGroup() {
+        return this.children.length > 1 || this.params.length > 0;
+    }
     toString() {
-        if (this.children.length > 1 || this.params.length > 0) {
+        if (this.isGroup()) {
             let concat = this.params;
             if (this.children.length == 1) {
                 concat = concat.concat("child: " + "\n" + this.children[0]);

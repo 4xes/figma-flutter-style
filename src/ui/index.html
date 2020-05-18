@@ -11,14 +11,20 @@
     <body>
 
     <div class="p-xxsmall">
-        <div class="flex p-xxsmall mb-xsmall">
+        <div class="flex">
             <button id="copy" class='button button--secondary mr-xxsmall'>Copy to clipboard</button>
         </div>
-        <div class="checkbox">
+        <div class="flex">
+            <div class="checkbox">
           <input id="exportFontFamily" type="checkbox" class="checkbox__box">
-          <label for="exportFontFamily" class="checkbox__label">Text with fontFamily</label>
+          <label for="exportFontFamily" class="checkbox__label">With fontFamily</label>
         </div>
-        <textarea id="code" class="textarea" rows="6"></textarea>
+        <div class="checkbox">
+          <input id="exportSizes" type="checkbox" class="checkbox__box" checked>
+          <label for="exportSizes" class="checkbox__label">With sizes</label>
+        </div>
+        </div>
+        <textarea id="code" class="textarea" rows="15"></textarea>
         
     </div>
 
