@@ -12,6 +12,14 @@ figma.ui.onmessage = msg => {
         figma.notify(msg.message);
     }
 };
+figma.on("selectionchange", () => {
+    let selection = figma.currentPage.selection;
+    for (let node of selection) {
+        if (node.type == "TEXT") {
+            createStyle(node);
+        }
+    }
+});
 function createStyle(node) {
     let code = "";
     let text = node.characters;
