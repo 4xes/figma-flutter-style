@@ -70,11 +70,12 @@ function createStyle(node: TextNode) {
   textStyle.addArgument("color", color)
   textStyle.addArgument("fontSize", fontSize.toFixed(1))
   textStyle.addArgument("fontWeight", fontWeight)
-  textStyle.addArgument("textAlign", textAlign)
 
   var textWidget = new FlutterObject("Text");
   textWidget.addValue("\"" + text + "\"")
-  textWidget.addArgument("style", textStyle.toString())
+  textWidget.addArgument("style", textStyle)
+  textWidget.addArgument("textAlign", textAlign)
+  textWidget.addArgumentOpt("test", null)
 
   code+= textWidget.toString()
   figma.ui.postMessage(code)
@@ -87,20 +88,28 @@ class FlutterObject {
     this.name = name
   }
 
-  addValue(value: String) {
-    this.params.push(value)
-  }
-  addArgument(name: String, value: String) {
+  addValue(value: any) {
     if (value != null) {
-      this.params.push(name + ": " + value)
+      this.params.push(value.toString())
+    } else {
+      this.params.push("null")
+    }
+  }
+  addArgument(name: String, value: any) {
+    if (value != null) {
+      this.params.push(name + ": " + value.toString())
     }
   }
   addArgumentOpt(name: String, value: String) {
-    this.params.push(name + ": " + value)
+    if (value == null) {
+      this.params.push(name + ": null")
+    } else {
+      this.params.push(name + ": " + value.toString())
+    }
   }
 
   toString() {
-    return name + "(" + this.params.join(", ") + ")";
+    return this.name + "(" + this.params.join(", ") + ")";
   }
 }
 
