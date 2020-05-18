@@ -1,28 +1,40 @@
 figma.showUI(__html__);
 figma.ui.onmessage = msg => {
     if (msg.type === 'create-style') {
-        let selection = figma.currentPage.selection;
-        for (let node of selection) {
-            if (node.type == "TEXT") {
-                createStyle(node);
-            }
-        }
+        parseSelection();
     }
     else if (msg.type === "alert") {
         figma.notify(msg.message);
     }
 };
 figma.on("selectionchange", () => {
-    let selection = figma.currentPage.selection;
-    for (let node of selection) {
-        if (node.type == "TEXT") {
-            createStyle(node);
-        }
-    }
+    parseSelection();
 });
-function createStyle(node) {
+function parseSelection() {
+    let selection = figma.currentPage.selection;
+    let parent = new FlutterParent();
+    for (let node of selection) {
+        parseNode(node, parent);
+    }
+    figma.ui.postMessage(parent.toString());
+}
+function parseNode(node, parent) {
+    console.log(node.type);
+    if (node.type == "TEXT") {
+        parent.addChild(textWidget(node));
+    }
+    else if (node.type == "GROUP" || node.type == "INSTANCE") {
+        let groupParent = new FlutterParent();
+        for (let child of node.children) {
+            console.log(child.type);
+            parseNode(child, groupParent);
+        }
+        parent.addChild(groupParent);
+    }
+}
+function textWidget(node) {
     let code = "";
-    let text = node.characters;
+    let text = "\"" + node.characters + "\"";
     let fontSize = node.fontSize;
     //TODO support fontFamily
     //var fontFamily = node.fontName["family"];
@@ -44,6 +56,30 @@ function createStyle(node) {
             textAlign = "TextAlign.justify";
             break;
     }
+    switch (node.textCase) {
+        case "LOWER":
+            text += ".toLowerCase()";
+            break;
+        case "TITLE":
+            text = "\"" + node.characters.charAt(0).toUpperCase() + node.characters.substring(1) + "\"";
+            break;
+        case "UPPER":
+            text += ".toUpperCase()";
+            break;
+    }
+    let decoration = null;
+    switch (node.textDecoration) {
+        //skip default
+        // case "NONE":
+        //     decoration = "TextDecoration.none";
+        //     break;
+        case "UNDERLINE":
+            decoration = "TextDecoration.underline";
+            break;
+        case "STRIKETHROUGH":
+            decoration = "TextDecoration.overline";
+            break;
+    }
     let fontWeight = null;
     switch (style) {
         // skip default
@@ -61,12 +97,13 @@ function createStyle(node) {
     textStyle.addArgument("color", color);
     textStyle.addArgument("fontSize", fontSize.toFixed(1));
     textStyle.addArgument("fontWeight", fontWeight);
+    textStyle.addArgument("decoration", decoration);
     let textWidget = new FlutterObject("Text");
-    textWidget.addValue("\"" + text + "\"");
+    textWidget.addValue(text);
     textWidget.addArgument("style", textStyle);
     textWidget.addArgument("textAlign", textAlign);
     code += textWidget;
-    figma.ui.postMessage(code);
+    return code;
 }
 class FlutterObject {
     constructor(name) {
@@ -86,6 +123,7 @@ class FlutterObject {
             this.params.push(name + ": " + value.toString());
         }
     }
+    // noinspection JSUnusedGlobalSymbols
     addArgumentOpt(name, value) {
         if (value == null) {
             this.params.push(name + ": null");
@@ -96,6 +134,26 @@ class FlutterObject {
     }
     toString() {
         return this.name + "(" + this.params.join(", ") + ")";
+    }
+}
+class FlutterParent {
+    constructor() {
+        this.name = "Group";
+        this.children = [];
+    }
+    addChild(value) {
+        this.children.push(value);
+    }
+    toString() {
+        if (this.children.length > 1) {
+            return this.name + "(\n" +
+                "  children: [" +
+                "\n   " + this.children.join(",\n") + "],\n" +
+                ");";
+        }
+        else {
+            return this.children.join("");
+        }
     }
 }
 class FlutterColor {
@@ -112,6 +170,7 @@ class FlutterColor {
             70: "Colors.white70",
             100: "Colors.white"
         };
+        this.whiteHexEnd = "FFFFFF";
         this.black = {
             12: "Colors.black12",
             26: "Colors.black26",
@@ -121,14 +180,17 @@ class FlutterColor {
             87: "Colors.black87",
             100: "Colors.black"
         };
+        this.blackHexEnd = "000000";
         this.not_parsed = "Colors.black";
     }
     fromTextNode(node) {
-        return this.fromPaint(node.fills[0]);
+        let fill = node.fills[0];
+        return this.fromPaint(fill, node.opacity);
     }
-    fromPaint(fill) {
+    fromPaint(fill, opacity) {
         if (fill.type === "SOLID") {
-            return this.color(fill.color, fill.opacity);
+            let roundOpacity = Math.round(fill.opacity * opacity * 100.0) / 100;
+            return this.color(fill.color, roundOpacity);
         }
         else {
             return this.not_parsed;
@@ -137,13 +199,13 @@ class FlutterColor {
     color(rgb, o) {
         let opacity = Math.round(o * 100);
         let hexColor = "" + hex(o) + hex(rgb.r) + hex(rgb.g) + hex(rgb.b);
-        if (hexColor.endsWith("FFFFFF")) {
+        if (hexColor.endsWith(this.whiteHexEnd)) {
             let white = this.white[opacity];
             if (white != null) {
                 return white;
             }
         }
-        if (hexColor.endsWith("000000")) {
+        if (hexColor.endsWith(this.blackHexEnd)) {
             let black = this.black[opacity];
             if (black != null) {
                 return black;
