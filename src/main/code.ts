@@ -28,7 +28,7 @@ function parseSelection() {
         }
         figma.ui.postMessage(parent.toString())
     } catch (e) {
-        console.log(e)
+        e.print()
     }
 }
 
@@ -41,10 +41,12 @@ function parseNode(node: SceneNode, parent: FlutterParent) {
             parent.addChild(line(node))
         } else if (node.type === "RECTANGLE") {
             let child = rectangle(node)
-            if (exportSizes) {
-                child.addSizes(node)
+            if (child != null) {
+                if (exportSizes) {
+                    child.addSizes(node)
+                }
+                parent.addChild(child)
             }
-            parent.addChild(child)
         } else if (node.type == "FRAME" || node.type === "GROUP" || node.type === "INSTANCE" || node.type == "COMPONENT") {
             let groupParent = new FlutterParent("Group");
             for (let child of node.children) {
@@ -73,6 +75,8 @@ function rectangle(node: RectangleNode): FlutterObject {
         if (node.fills[0].type == "IMAGE") {
             return new FlutterObject("Image.asset", toFlutterString(node.name))
         }
+    } else {
+        return null
     }
 }
 
@@ -181,8 +185,6 @@ function imageDecoration(node: SceneNode, paint: ImagePaint): FlutterObject {
 function text(node: TextNode): FlutterObject {
     try {
         let text = toFlutterString(node.characters);
-        console.log(node.characters)
-        console.log(text)
         let fontSize = node.fontSize as number;
         let style = (node.fontName as FontName)["style"];
         let fontFamily = null;

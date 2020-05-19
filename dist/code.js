@@ -26,7 +26,7 @@ function parseSelection() {
         figma.ui.postMessage(parent.toString());
     }
     catch (e) {
-        console.log(e);
+        e.print();
     }
 }
 function parseNode(node, parent) {
@@ -40,10 +40,12 @@ function parseNode(node, parent) {
         }
         else if (node.type === "RECTANGLE") {
             let child = rectangle(node);
-            if (exportSizes) {
-                child.addSizes(node);
+            if (child != null) {
+                if (exportSizes) {
+                    child.addSizes(node);
+                }
+                parent.addChild(child);
             }
-            parent.addChild(child);
         }
         else if (node.type == "FRAME" || node.type === "GROUP" || node.type === "INSTANCE" || node.type == "COMPONENT") {
             let groupParent = new FlutterParent("Group");
@@ -73,6 +75,9 @@ function rectangle(node) {
         if (node.fills[0].type == "IMAGE") {
             return new FlutterObject("Image.asset", toFlutterString(node.name));
         }
+    }
+    else {
+        return null;
     }
 }
 function hasBorderOrBackground(node) {
@@ -179,8 +184,6 @@ function imageDecoration(node, paint) {
 function text(node) {
     try {
         let text = toFlutterString(node.characters);
-        console.log(node.characters);
-        console.log(text);
         let fontSize = node.fontSize;
         let style = node.fontName["style"];
         let fontFamily = null;
