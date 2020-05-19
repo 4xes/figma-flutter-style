@@ -20,33 +20,73 @@ figma.on("selectionchange", () => {
 
 function parseSelection() {
     let selection = figma.currentPage.selection;
-
     console.log("Parse selection.");
-    let parent = new FlutterParent();
-    for (let node of selection) {
-        parseNode(node, parent)
+    try {
+        let parent = new FlutterParent("Group");
+        for (let node of selection) {
+            parseNode(node, parent)
+        }
+        figma.ui.postMessage(parent.toString())
+    } catch (e) {
+        console.log(e)
     }
-    figma.ui.postMessage(parent.toString())
 }
 
 function parseNode(node: SceneNode, parent: FlutterParent) {
     console.log("node: " + node.type);
-    if (node.type === "TEXT") {
-        parent.addChild(text(node));
-    } else if (node.type === "LINE") {
-        parent.addChild(line(node))
-    } else if (node.type === "RECTANGLE") {
-        parent.addArgument("decoration", decoration(node))
-    } else if (node.type === "GROUP" || node.type === "INSTANCE" || node.type == "COMPONENT") {
-        let groupParent = new FlutterParent();
-        for (let child of node.children) {
-            parseNode(child, groupParent)
+    if (node.visible) {
+        if (node.type === "TEXT") {
+            parent.addChild(text(node));
+        } else if (node.type === "LINE") {
+            parent.addChild(line(node))
+        } else if (node.type === "RECTANGLE") {
+            let child = rectangle(node)
+            if (exportSizes) {
+                child.addSizes(node)
+            }
+            parent.addChild(child)
+        } else if (node.type == "FRAME" || node.type === "GROUP" || node.type === "INSTANCE" || node.type == "COMPONENT") {
+            let groupParent = new FlutterParent("Group");
+            for (let child of node.children) {
+                parseNode(child, groupParent)
+            }
+            if (hasBorderOrBackground(node)) {
+                let container = containerWithDecoration(node, true)
+                container.addChild(groupParent)
+                parent.addChild(container)
+            } else {
+                parent.addChild(groupParent);
+            }
+            if (exportSizes && groupParent.isGroup()) {
+                groupParent.addSizes(node)
+            }
         }
-        parent.addChild(groupParent);
-        if (exportSizes && groupParent.isGroup()) {
-            groupParent.addArgumentPre("width", node.width.toFixed(1));
-            groupParent.addArgumentPre("height", node.height.toFixed(1));
+    }
+}
+
+function rectangle(node: RectangleNode): FlutterObject {
+    if (node.fills != figma.mixed && node.fills.length > 0) {
+        let fill = node.fills[0]
+        if (fill.type == "SOLID" || fill.type.startsWith("GRADIENT_")) {
+            return containerWithDecoration(node)
         }
+        if (node.fills[0].type == "IMAGE") {
+            return new FlutterObject("Image.asset", toFlutterString(node.name))
+        }
+    }
+}
+
+function hasBorderOrBackground(node: any): boolean {
+    if (node.type === "INSTANCE" || node.type == "COMPONENT") {
+        console.log(node.type)
+        let hasFills = false
+        if (node.fills !== figma.mixed) {
+            hasFills = node.fills.length > 0
+        }
+        let hasBorder = node.strokes.length > 0 && node.strokeWeight > 0;
+        return hasFills && hasBorder
+    } else {
+        return false
     }
 }
 
@@ -71,9 +111,8 @@ function line(node: LineNode): FlutterObject {
     }
 }
 
-function decoration(node: RectangleNode) {
+function containerWithDecoration(node: any, withClipRect = false) {
     let boxDecoration = new FlutterObject("BoxDecoration");
-
     let hasBorder = node.strokes.length > 0 && node.strokeWeight > 0;
     if (hasBorder) {
         let firstPaint = node.strokes[0];
@@ -92,19 +131,19 @@ function decoration(node: RectangleNode) {
         }
     } else {
         borderRadius = new FlutterObject("BorderRadius.only");
-        if (node.topLeftRadius != 0) {
+        if (node.topLeftRadius !== 0) {
             let radius = new FlutterObject("Radius.circular", node.topLeftRadius.toFixed(1));
             borderRadius.addArgument("topLeft", radius)
         }
-        if (node.topRightRadius != 0) {
+        if (node.topRightRadius !== 0) {
             let radius = new FlutterObject("Radius.circular", node.topRightRadius.toFixed(1));
             borderRadius.addArgument("topRight", radius)
         }
-        if (node.bottomLeftRadius != 0) {
+        if (node.bottomLeftRadius !== 0) {
             let radius = new FlutterObject("Radius.circular", node.bottomLeftRadius.toFixed(1));
             borderRadius.addArgument("bottomLeft", radius)
         }
-        if (node.bottomRightRadius != 0) {
+        if (node.bottomRightRadius !== 0) {
             let radius = new FlutterObject("Radius.circular", node.bottomRightRadius.toFixed(1));
             borderRadius.addArgument("bottomRight", radius)
         }
@@ -112,16 +151,38 @@ function decoration(node: RectangleNode) {
     }
     if (node.fills !== figma.mixed) {
         if (node.fills.length > 0) {
-            let color = new FlutterColor().fromPaint(node.fills[0], node.opacity);
-            boxDecoration.addArgument("color", color)
+            let fill = node.fills[0]
+            if (fill.type == "SOLID") {
+                let color = new FlutterColor().fromPaint(node.fills[0], node.opacity);
+                boxDecoration.addArgument("color", color)
+            } else if(fill.type == "IMAGE") {
+                boxDecoration.addArgument("image", imageDecoration(node, fill))
+            } else if (fill.type.startsWith("GRADIENT_")) {
+
+            }
         }
     }
-    return boxDecoration;
+    let container = new FlutterParent("Container")
+    if (exportSizes) {
+        container.addArgument("width", node.width.toFixed(1));
+        container.addArgument("height", node.height.toFixed(1));
+    }
+    container.addArgument("decoration", boxDecoration)
+    return container;
+}
+
+function imageDecoration(node: SceneNode, paint: ImagePaint): FlutterObject {
+    let imageDecoration = new FlutterObject("DecorationImage")
+    imageDecoration.addArgument("image", new FlutterObject("AssetImage", toFlutterString(node.name)))
+    imageDecoration.addArgument("fit", "BoxFit.cover")
+    return imageDecoration
 }
 
 function text(node: TextNode): FlutterObject {
     try {
         let text = toFlutterString(node.characters);
+        console.log(node.characters)
+        console.log(text)
         let fontSize = node.fontSize as number;
         let style = (node.fontName as FontName)["style"];
         let fontFamily = null;
@@ -208,9 +269,13 @@ class FlutterObject {
     constructor(name: string, ...args: any[]) {
         this.name = name;
         for (let i = 0; i < args.length; i++) {
-            console.log("params.push");
             this.params.push(args[i])
         }
+    }
+
+    addSizes(node: SceneNode) {
+        this.addArgument("width", node.width.toFixed(1));
+        this.addArgument("height", node.height.toFixed(1));
     }
 
     addValue(value: any) {
@@ -224,12 +289,6 @@ class FlutterObject {
     addArgument(name: string, value: any) {
         if (value != null) {
             this.params.push(name + ": " + value.toString())
-        }
-    }
-
-    addArgumentPre(name: string, value: any) {
-        if (value != null) {
-            this.params = [name + ": " + value.toString()].concat(this.params);
         }
     }
 
@@ -250,8 +309,8 @@ class FlutterObject {
 class FlutterParent extends FlutterObject {
     children: any[] = [];
 
-    constructor() {
-        super("Group");
+    constructor(name: string) {
+        super(name);
     }
 
     addChild(value: any) {
@@ -360,11 +419,10 @@ class FlutterColor {
     mixed = "figma.mixed";
 }
 
-
 function hex(double: number): String {
     return (Math.round(double * 255)).toString(16).toUpperCase().padStart(2, "0");
 }
 
 function toFlutterString(text: string) {
-    return "\'" + text + "\'"
+    return ("\'" + text + "\'").replace(/(\r\n|\n|\r)/gm,"\\n")
 }
