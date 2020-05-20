@@ -24,7 +24,7 @@ function parseSelection() {
     try {
         let parent = new FlutterParent("Group");
         for (let node of selection) {
-            parseNode(node, parent)
+            group(node, parent)
         }
         figma.ui.postMessage(parent.toString())
     } catch (e) {
@@ -32,13 +32,15 @@ function parseSelection() {
     }
 }
 
-function parseNode(node: SceneNode, parent: FlutterParent) {
+function group(node: SceneNode, parent: FlutterParent) {
     console.log("node: " + node.type);
     if (node.visible) {
         if (node.type === "TEXT") {
             parent.addChild(text(node));
         } else if (node.type === "LINE") {
             parent.addChild(line(node))
+        } else if (node.type === "VECTOR") {
+            parent.addChild(vector(node))
         } else if (node.type === "RECTANGLE") {
             let child = rectangle(node)
             if (child != null) {
@@ -50,7 +52,7 @@ function parseNode(node: SceneNode, parent: FlutterParent) {
         } else if (node.type == "FRAME" || node.type === "GROUP" || node.type === "INSTANCE" || node.type == "COMPONENT") {
             let groupParent = new FlutterParent("Group");
             for (let child of node.children) {
-                parseNode(child, groupParent)
+                group(child, groupParent)
             }
             if (hasBorderOrBackground(node)) {
                 let container = containerWithDecoration(node, true)
@@ -66,6 +68,24 @@ function parseNode(node: SceneNode, parent: FlutterParent) {
     }
 }
 
+function vector(node: VectorNode): FlutterObject {
+    let icon = new FlutterObject("Icon", "AppIcons." + node.name);
+    if (node.fills != figma.mixed && node.fills.length > 0) {
+        let fill = node.fills[0]
+        if (fill.type == "SOLID") {
+            let color = FlutterColor.fromPaint(fill, node.opacity)
+            icon.addArgument("color", color)
+        }
+    }
+    if (exportSizes) {
+        let height = node.height.toFixed(1);
+        if (height !== "24.0") {
+            icon.addArgument("size", height)
+        }
+    }
+    return icon
+}
+
 function rectangle(node: RectangleNode): FlutterObject {
     if (node.fills != figma.mixed && node.fills.length > 0) {
         let fill = node.fills[0]
@@ -73,7 +93,7 @@ function rectangle(node: RectangleNode): FlutterObject {
             return containerWithDecoration(node)
         }
         if (node.fills[0].type == "IMAGE") {
-            return new FlutterObject("Image.asset", toFlutterString(node.name))
+            return new FlutterObject("Image.asset",  toFlutterString("assets/images/" + node.name + ".png"))
         }
     } else {
         return null
@@ -97,9 +117,9 @@ function hasBorderOrBackground(node: any): boolean {
 function line(node: LineNode): FlutterObject {
     let height = node.strokeWeight.toFixed(1);
     let width = node.width.toFixed(1);
-    let color = new FlutterColor().fromLineNode(node);
+    let color = FlutterColor.fromLineNode(node);
 
-    if (Math.round(node.rotation) == 0) {
+    if (Math.round(node.rotation) === 0) {
         let dividerWidget = new FlutterObject("Divider");
         if (height != "16.0") {
             dividerWidget.addArgument("height", height);
@@ -120,7 +140,7 @@ function containerWithDecoration(node: any, withClipRect = false) {
     let hasBorder = node.strokes.length > 0 && node.strokeWeight > 0;
     if (hasBorder) {
         let firstPaint = node.strokes[0];
-        let borderColor = new FlutterColor().fromPaint(firstPaint, node.opacity);
+        let borderColor = FlutterColor.fromPaint(firstPaint, node.opacity);
         let borderSide = new FlutterObject("BorderSide");
         borderSide.addArgument("width", node.strokeWeight.toFixed(1));
         borderSide.addArgument("color", borderColor);
@@ -157,7 +177,7 @@ function containerWithDecoration(node: any, withClipRect = false) {
         if (node.fills.length > 0) {
             let fill = node.fills[0]
             if (fill.type == "SOLID") {
-                let color = new FlutterColor().fromPaint(node.fills[0], node.opacity);
+                let color = FlutterColor.fromPaint(node.fills[0], node.opacity);
                 boxDecoration.addArgument("color", color)
             } else if(fill.type == "IMAGE") {
                 boxDecoration.addArgument("image", imageDecoration(node, fill))
@@ -167,10 +187,6 @@ function containerWithDecoration(node: any, withClipRect = false) {
         }
     }
     let container = new FlutterParent("Container")
-    if (exportSizes) {
-        container.addArgument("width", node.width.toFixed(1));
-        container.addArgument("height", node.height.toFixed(1));
-    }
     container.addArgument("decoration", boxDecoration)
     return container;
 }
@@ -191,7 +207,7 @@ function text(node: TextNode): FlutterObject {
         if (exportFontFamily) {
             fontFamily = toFlutterString((node.fontName as FontName)["family"]);
         }
-        let color = new FlutterColor().fromTextNode(node);
+        let color = FlutterColor.fromTextNode(node);
         let textAlign = null;
         switch (node.textAlignHorizontal) {
             //skip default
@@ -233,6 +249,7 @@ function text(node: TextNode): FlutterObject {
                 break;
         }
         let fontWeight = null;
+        let fontStyle = null;
         switch (style) {
             // skip default
             // case "Regular":
@@ -244,14 +261,22 @@ function text(node: TextNode): FlutterObject {
             case "Bold":
                 fontWeight = "FontWeight.bold";
                 break
+            case "Regular Italic":
+                fontStyle = "FontStyle.italic"
+                break;
         }
-
+        //overflow: TextOverflow.ellipsis, maxLines: 1
         let textStyle = new FlutterObject("TextStyle");
         textStyle.addArgument("color", color);
         textStyle.addArgument("fontSize", fontSize.toFixed(1));
         textStyle.addArgument("fontFamily", fontFamily);
         textStyle.addArgument("fontWeight", fontWeight);
+        textStyle.addArgument("fontStyle", fontStyle)
         textStyle.addArgument("decoration", decoration);
+        if (node.characters.endsWith("...") || node.characters.endsWith("…")) {
+            textStyle.addArgument("overflow", "TextOverflow.ellipsis")
+            textStyle.addArgument("maxLines", 1)
+        }
 
         let textWidget = new FlutterObject("Text");
         textWidget.addValue(text);
@@ -341,7 +366,7 @@ class FlutterParent extends FlutterObject {
 }
 
 class FlutterColor {
-    fromTextNode(node: TextNode): string {
+    static fromTextNode(node: TextNode): string {
         if (node.fills === figma.mixed) {
             //todo try to parse
             return this.mixed
@@ -355,12 +380,12 @@ class FlutterColor {
         }
     }
 
-    fromLineNode(node: LineNode): string {
+    static fromLineNode(node: LineNode): string {
         let fill = (node.strokes as ReadonlyArray<Paint>)[0];
         return this.fromPaint(fill, node.opacity)
     }
 
-    fromPaint(fill: Paint, opacity: number): string {
+    static fromPaint(fill: Paint, opacity: number): string {
         if (fill.type === "SOLID") {
             let roundOpacity = Math.round(fill.opacity * opacity * 100.0) / 100;
             return this.color(fill.color, roundOpacity)
@@ -369,7 +394,7 @@ class FlutterColor {
         }
     }
 
-    color(rgb: RGB, o: number): string {
+    static color(rgb: RGB, o: number): string {
         let opacity = Math.round(o * 100);
         let hexColor = "" + hex(o) + hex(rgb.r) + hex(rgb.g) + hex(rgb.b);
         if (hexColor.endsWith(this.whiteHexEnd)) {
@@ -390,9 +415,9 @@ class FlutterColor {
         return "Color(0x" + hexColor + ")";
     }
 
-    transparent = "Colors.transparent";
+    static transparent = "Colors.transparent";
 
-    white: { [index: number]: string } = {
+    static white: { [index: number]: string } = {
         10: "Colors.white10",
         12: "Colors.white12",
         24: "Colors.white24",
@@ -404,9 +429,9 @@ class FlutterColor {
         100: "Colors.white"
     };
 
-    whiteHexEnd = "FFFFFF";
+    static whiteHexEnd = "FFFFFF";
 
-    black: { [index: number]: string } = {
+    static black: { [index: number]: string } = {
         12: "Colors.black12",
         26: "Colors.black26",
         38: "Colors.black38",
@@ -416,9 +441,9 @@ class FlutterColor {
         100: "Colors.black"
     };
 
-    blackHexEnd = "000000";
+    static blackHexEnd = "000000";
 
-    mixed = "figma.mixed";
+    static mixed = "figma.mixed";
 }
 
 function hex(double: number): String {
