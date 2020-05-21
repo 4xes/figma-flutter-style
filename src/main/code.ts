@@ -142,7 +142,10 @@ function containerWithDecoration(node: any, withClipRect = false) {
         let firstPaint = node.strokes[0];
         let borderColor = FlutterColor.fromPaint(firstPaint, node.opacity);
         let borderSide = new FlutterObject("BorderSide");
-        borderSide.addArgument("width", node.strokeWeight.toFixed(1));
+        let width = node.strokeWeight.toFixed(1)
+        if (width !== "1.0") {
+            borderSide.addArgument("width", node.strokeWeight.toFixed(1));
+        }
         borderSide.addArgument("color", borderColor);
         let border = new FlutterObject("Border.fromBorderSide", borderSide);
         boxDecoration.addArgument("border", border)
